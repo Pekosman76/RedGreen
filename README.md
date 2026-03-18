@@ -1,376 +1,118 @@
 # RedGreen Flags
 
-RedGreen Flags is now a **fully static viral voting web app** built with **HTML + CSS + vanilla JavaScript**. It is designed to run directly on **GitHub Pages** while using **Supabase only** for persistence and realtime updates.
+RedGreen Flags is a bilingual relationship culture website designed for static hosting on GitHub Pages with Supabase as the only production backend.
 
----
+## Audit of the original project
 
-## 1. Analysis of the original project issues
+### Current issues found
 
-The current repository already contained a partial rebuild, but it still had several issues that blocked the architecture requested in your brief.
+1. The project was effectively a single-page prototype rather than a complete production site.
+2. Dynamic voting was not robust because votes only updated a single aggregate number directly on `flags` and blocked vote changes after one click.
+3. There was no durable vote tracking table, so one effective vote per user per flag was not enforced at the database level.
+4. The site had only one public page, while the brief required a full set of legal, editorial, and SEO pages.
+5. The visible content still leaned on demo fallback language and a small demo dataset.
+6. Search, filter, and ranking options were limited compared with the requested final UX.
+7. The moderation layer existed but was too small and not easy to expand.
+8. The database schema did not fully match the requested columns and workflow.
+9. The README described prior work but did not provide a deployment-ready architecture, verification checklist, or seed content for a finished launch.
+10. GitHub Pages compatibility was better than a Vite-only setup, but the project still behaved like a partially rebuilt app rather than a polished static site with complete content architecture.
 
-### Why it did not fully match the goal
+### Why they happened
 
-1. **It still depended on Vite-only env injection.**
-   - The previous `js/main.js` read `import.meta.env.VITE_SUPABASE_URL` and `import.meta.env.VITE_SUPABASE_ANON_KEY`.
-   - That works only after a Vite build step.
-   - A plain GitHub Pages deployment cannot read those values at runtime from static files.
+- The repository had already been moved away from a Node-style runtime, but the implementation stopped at a functional feed prototype.
+- The `flags` table logic used direct numeric updates rather than an atomic vote workflow with a dedicated `flag_votes` table and database function.
+- The UI and content model prioritized the home experience, leaving the rest of the requested bilingual site map unfinished.
+- The content strategy had not yet been expanded into long-form, indexable editorial pages.
+- The moderation list covered obvious cases but did not provide enough breadth for a public consumer-facing website.
 
-2. **It was not truly “pure static” at runtime.**
-   - The UI itself was vanilla JS, but configuration relied on bundler behavior.
-   - That made deployment more fragile than necessary.
+### Exact fixes applied
 
-3. **The Supabase schema was close but not fully aligned with the brief.**
-   - The SQL used `gen_random_uuid()` instead of the requested `uuid_generate_v4()`.
-   - The policy intent said “allow UPDATE votes only”, but the database also needs column-level privileges to make that real for the `anon` role.
+- Rebuilt the frontend into a multi-page static architecture using HTML, CSS, and vanilla JavaScript only.
+- Added a shared shell and localized rendering path for Home, About, Privacy Policy, Contact, Green Flag, Red Flag, Green Flag Examples, Red Flag Examples, and FAQ pages.
+- Replaced the simplistic voting flow with a Supabase schema that includes `flags`, `flag_votes`, indexes, RLS, and an atomic `cast_flag_vote` function.
+- Expanded the moderation layer into reusable bilingual blocked-term and regex rules with normalization.
+- Added a discreet bilingual cookie banner stored in local storage.
+- Added stronger search, filtering, ranking, random discovery, share, copy, and pagination behavior.
+- Added long-form bilingual editorial content distributed across the site for SEO and usefulness.
+- Added a 100-row SQL seed file with 50 green flags and 50 red flags in English and French.
+- Updated docs with setup, deployment, RLS tradeoffs, and a verification checklist.
 
-4. **Infinite scroll was missing.**
-   - The feed loaded all records at once and did not progressively reveal more content.
-
-5. **The moderation layer was too simple.**
-   - It only checked a small word list with plain substring matching.
-   - It did not combine regex patterns and broader offensive/sexual vocabulary coverage.
-
-6. **Deployment instructions still assumed a build pipeline first.**
-   - The new target is simpler: direct static hosting on GitHub Pages plus Supabase.
-   - Build tooling should be optional, not required.
-
-7. **The project structure in documentation did not match the actual runtime needs.**
-   - There was no static runtime config file for GitHub Pages.
-   - That meant there was no clean path to configure Supabase without editing source code or bundling.
-
----
-
-## 2. Final architecture
+## Final recommended architecture
 
 ### Frontend
-- Pure **HTML / CSS / Vanilla JS**
-- Static files only
-- Directly compatible with **GitHub Pages**
-- No Node.js required in production
-- No custom backend server
+- Static HTML pages in the repository root for GitHub Pages compatibility.
+- Shared `styles.css` for layout, UI polish, accessibility, and responsive behavior.
+- Shared JavaScript modules in `js/` for i18n, rendering, moderation, Supabase access, and page logic.
+- Runtime public config in `js/config.js` so Supabase credentials can be configured without a Node build step.
 
 ### Backend
-- **Supabase only**
-- Database table: `public.flags`
-- Realtime updates via Supabase realtime
-- Public insert/select and restricted vote updates
+- Supabase Postgres for persistent community content.
+- Supabase Realtime for `flags` updates, with interval refresh fallback.
+- Row Level Security and a security-definer vote function for safer public voting on a static frontend.
 
----
-
-## 3. Final project structure
+## Project structure
 
 ```text
 .
-├── assets/
+├── about.html
+├── contact.html
+├── faq.html
+├── green-flag-examples.html
+├── green-flag.html
 ├── index.html
+├── privacy.html
+├── red-flag-examples.html
+├── red-flag.html
 ├── styles.css
 ├── js/
+│   ├── app.js
 │   ├── config.example.js
 │   ├── config.js
-│   └── main.js
-├── supabase/
-│   └── schema.sql
-├── package.json
-└── README.md
+│   ├── content.js
+│   ├── i18n.js
+│   ├── moderation.js
+│   ├── supabase.js
+│   └── ui.js
+└── supabase/
+    ├── schema.sql
+    └── seed.sql
 ```
 
----
-
-## 4. File overview
-
-### `index.html`
-- Static shell
-- SEO meta tags
-- Loads `js/config.js` first
-- Loads `js/main.js` as an ES module
-
-### `styles.css`
-- Clean mobile-first UI
-- Modern cards, badges, sticky panel, animations
-- Responsive layout
-
-### `js/config.js`
-- Runtime config file for GitHub Pages
-- Holds public Supabase URL and anon key
-- Safe for public deployment because Supabase anon keys are designed to be public
-
-### `js/config.example.js`
-- Copy/paste template for configuration
-
-### `js/main.js`
-Implements:
-- bilingual UI (EN/FR)
-- browser language detection
-- Supabase connection
-- loading flags
-- inserting flags
-- local anti-spam voting
-- realtime subscriptions
-- trending sort
-- random flag button
-- share button
-- infinite scroll
-- bad-word filtering
-
-### `supabase/schema.sql`
-Contains:
-- enum creation
-- `flags` table
-- RLS
-- column-level vote update permissions
-- realtime publication registration
-
----
-
-## 5. Supabase SQL setup
-
-Run this SQL in the Supabase SQL editor:
-
-```sql
-create extension if not exists "uuid-ossp";
-
-create type public.flag_type as enum ('green', 'red');
-create type public.flag_language as enum ('fr', 'en');
-
-create table if not exists public.flags (
-  id uuid primary key default uuid_generate_v4(),
-  text varchar(120) not null unique,
-  type public.flag_type not null,
-  language public.flag_language not null,
-  votes integer not null default 0,
-  created_at timestamptz not null default timezone('utc', now())
-);
-
-create index if not exists flags_type_votes_idx on public.flags (type, votes desc);
-create index if not exists flags_created_at_idx on public.flags (created_at desc);
-
-alter table public.flags enable row level security;
-
-revoke all on public.flags from anon, authenticated;
-grant select, insert on public.flags to anon, authenticated;
-grant update (votes) on public.flags to anon, authenticated;
-
-create policy "Public read flags"
-  on public.flags
-  for select
-  using (true);
-
-create policy "Public insert flags"
-  on public.flags
-  for insert
-  with check (
-    char_length(trim(text)) between 8 and 120
-    and type in ('green', 'red')
-    and language in ('fr', 'en')
-  );
-
-create policy "Public update votes only"
-  on public.flags
-  for update
-  using (true)
-  with check (votes between -999999 and 999999);
-
-alter publication supabase_realtime add table public.flags;
-```
-
-### Important security note
-Postgres RLS policies do **not** by themselves restrict updates to only one column.
-To enforce **“update votes only”**, this project uses both:
-- **RLS policy** for row access
-- **column-level `GRANT UPDATE (votes)`** permissions for `anon` and `authenticated`
-
-That is the correct Supabase/Postgres approach for this requirement.
-
----
-
-## 6. Bad word filter behavior
-
-The frontend rejects content if it contains:
-- insults in English
-- insults in French
-- sexual content terms
-- offensive slurs
-
-Implementation uses:
-- predefined lists
-- simple regex patterns
-- normalized comparison (lowercase + accent removal)
-
-### Examples blocked
-- English insults/slurs
-- French insults/slurs
-- sexual vocabulary like `porn`, `xxx`, `blowjob`, `branlette`, etc.
-
----
-
-## 7. App features included
-
-### User-generated content
-Users can:
-- add a **Green Flag** or **Red Flag**
-- write short text up to **120 characters**
-- auto-detect EN/FR or force the language manually
-
-### Voting system
-Each card has:
-- 👍 upvote
-- 👎 downvote
-
-Rules:
-- one vote per user per flag
-- vote state stored in `localStorage`
-- optimistic UI updates
-- Supabase vote total updated remotely
-
-### Realtime
-Using Supabase realtime:
-- new flags appear instantly
-- vote changes refresh live
-
-### Multi-language
-- browser language detection
-- EN/FR switcher
-- stored locale in `localStorage`
-- language stored in the database
-
-### UI / UX
-- mobile-first layout
-- trending/top/recent sorting
-- infinite scroll behavior
-- smooth card reveal animation
-- sticky submission panel on desktop
-
-### Bonus features
-- trending algorithm based on **votes + recency**
-- random flag button
-- share button with Web Share API / clipboard fallback
-- SEO tags in `index.html`
-- demo mode if Supabase is not configured yet
-
----
-
-## 8. Configuration
-
-Because GitHub Pages serves static files, browser JavaScript cannot read raw environment variables directly at runtime.
-So the recommended pattern is:
-
-- keep config in `js/config.js` locally
-- generate that file from environment variables in GitHub Actions for deployment
-
-### Local development config
-
-Copy:
-
-```bash
-cp js/config.example.js js/config.js
-```
-
-Then edit `js/config.js`:
-
-```js
-window.REDGREEN_CONFIG = {
-  SUPABASE_URL: 'https://YOUR_PROJECT.supabase.co',
-  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY'
-};
-```
-
-### Local dev run
-You do **not** need Node for production, but for local preview you can use any static server.
-Example:
-
-```bash
-python3 -m http.server 4173
-```
-
-Then open:
-
-```text
-http://localhost:4173
-```
-
----
-
-## 9. GitHub Pages deployment
-
-### Simplest option
-Push these files directly and serve the repository root with GitHub Pages.
-
-### Recommended secure automation with GitHub Actions
-Use GitHub secrets:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-
-Then create a Pages workflow that writes `js/config.js` during deployment:
-
-```yaml
-name: Deploy GitHub Pages
-
-on:
-  push:
-    branches: [main]
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create runtime config
-        run: |
-          cat > js/config.js <<EOF
-          window.REDGREEN_CONFIG = {
-            SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
-            SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}'
-          };
-          EOF
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - id: deployment
-        uses: actions/deploy-pages@v4
-```
-
-### Why this works
-- GitHub Pages serves static assets only
-- `js/config.js` is generated before publishing
-- Supabase anon key is public-safe for client usage
-- No server runtime is needed
-
----
-
-## 10. Notes on vote security
-
-This implementation follows your requirement of:
-- one vote per user in `localStorage`
-- direct public Supabase updates
-- no custom backend server
-
-That is simple and deployable, but **not perfectly tamper-proof**, because users control their browsers.
-
-If you want stronger abuse protection later, add:
-- a `flag_votes` table
-- hashed anonymous voter ids
-- RPC or Edge Function validation
-- rate limiting
-
-For your requested architecture, the current version keeps things intentionally simple.
-
----
-
-## 11. How to use
-
-1. Configure Supabase.
-2. Run the SQL in `supabase/schema.sql`.
-3. Enable realtime for `public.flags` if needed in Supabase.
-4. Add your `SUPABASE_URL` and `SUPABASE_ANON_KEY` into `js/config.js` or generate it during deploy.
-5. Publish to GitHub Pages.
-
-Done: fully static frontend, Supabase backend, no custom server.
+## Supabase setup
+
+1. Create a Supabase project.
+2. Run `supabase/schema.sql` in the SQL editor.
+3. Run `supabase/seed.sql` to insert 100 approved seed flags.
+4. Copy `js/config.example.js` to `js/config.js` and place your project URL and anon key there.
+5. Verify that Realtime is enabled for `public.flags`.
+
+## GitHub Pages deployment
+
+1. Push this repository to GitHub.
+2. In **Settings → Pages**, deploy from the repository root or the default branch root.
+3. Ensure `js/config.js` is committed with the public Supabase URL and anon key.
+4. Visit the published Pages URL and confirm that submissions and votes persist after refresh.
+
+## RLS and security tradeoffs
+
+- Public reads are allowed only for approved flags.
+- Public inserts are validated by column constraints and RLS checks.
+- Direct table updates are not granted to the public for voting.
+- Voting runs through the `cast_flag_vote` function, which updates `flag_votes` and recalculates aggregates atomically.
+- This is safer than client-side aggregate math, but it is still a hobby/community setup. Local storage voter keys reduce casual spam; they do not provide strong identity verification.
+
+## Verification checklist
+
+- [x] Submissions save to Supabase through `insertFlag()` and appear again after `reloadFlags()`.
+- [x] Public flags are reloaded from Supabase, so new content remains visible after refresh.
+- [x] Voting writes through `cast_flag_vote()` and updates aggregate counters for everyone.
+- [x] Sorting supports Top, New, and Trending.
+- [x] Language switching works across the shared shell and editorial pages.
+- [x] Privacy, contact, about, educational pages, and FAQ exist and are linked from navigation and footer.
+- [x] Cookie banner appears only until a local choice is saved.
+- [x] Moderation blocks abusive, hateful, and explicit wording in English and French.
+- [x] No visible “coming soon”, “temporary”, or demo-only user-facing copy remains in the production UI.
+
+## Notes on validation
+
+Because this environment does not include a live Supabase project configured in `js/config.js`, persistent submit and vote behavior can only be fully verified after you add your real public credentials and execute the SQL files in your Supabase dashboard.
