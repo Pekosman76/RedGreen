@@ -1,166 +1,236 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
 const MAX_LENGTH = 120;
+const MIN_LENGTH = 8;
+const PAGE_SIZE = 12;
+const DEMO_PREFIX = 'demo-';
 const STORAGE_KEYS = {
   locale: 'redgreen_locale',
   votes: 'redgreen_votes',
-  userId: 'redgreen_user_id'
+  sessionId: 'redgreen_session_id'
 };
 
 const translations = {
   en: {
     appName: 'RedGreen Flags',
-    appTagline: 'Vote on red flags and green flags in seconds.',
-    heroTitle: 'Fast, bilingual, endlessly scrollable flag voting.',
-    heroBody: 'Built for GitHub Pages, powered by Supabase, and optimized for short user-generated posts, live updates, moderation, and mobile-first browsing.',
-    heroBullets: ['Submit short flags up to 120 characters.', 'One local vote per user per flag.', 'Automatic English/French detection + filtering.'],
-    addFlag: 'Add a new flag',
-    sentence: 'Sentence',
-    sentencePlaceholder: 'Example: They ask how your day was and actually listen.',
+    appTagline: 'Post, vote, and discover the most viral green and red flags.',
+    heroTitle: 'The realtime red flag / green flag app built for viral takes.',
+    heroBody:
+      'Pure HTML, CSS, and vanilla JavaScript on GitHub Pages. Supabase handles storage and realtime events. No custom server required.',
+    heroBullets: [
+      'User-generated content with 120-character validation.',
+      'One local vote per user per flag to reduce spam.',
+      'Automatic French / English detection with bad-word filtering.'
+    ],
+    liveFeed: 'Live feed',
+    liveReady: 'Realtime connected',
+    liveDemo: 'Demo mode',
+    liveBody: 'New flags and vote changes appear instantly when Supabase realtime is enabled.',
+    moderationTitle: 'Moderation guardrails',
+    moderationBody: 'Submissions are blocked if they contain insults, offensive terms, or sexual content in English or French.',
+    addFlag: 'Add a flag',
+    addSubtitle: 'Keep it short, clear, and safe for public sharing.',
+    sentence: 'Flag text',
+    sentencePlaceholder: 'Example: They ask follow-up questions and actually listen.',
     type: 'Type',
     green: 'Green Flag',
     red: 'Red Flag',
     language: 'Language',
     auto: 'Auto detect',
+    detectionEn: 'English',
+    detectionFr: 'French',
     submit: 'Submit flag',
-    recent: 'Recent',
-    top: 'Top votes',
-    trending: 'Trending',
+    submitHint: 'Public posting is anonymous. Don’t share personal data.',
+    browseLabel: 'Browse',
     all: 'All',
+    trending: 'Trending',
+    top: 'Top votes',
+    recent: 'Recent',
     topGreen: 'Top Green Flags',
     topRed: 'Top Red Flags',
-    liveFeed: 'Live feed',
-    feedBody: 'Realtime submissions and votes update here.',
     random: 'Random flag',
     share: 'Share',
     upvote: 'Upvote',
     downvote: 'Downvote',
     votes: 'votes',
-    loading: 'Loading flags…',
+    score: 'score',
     empty: 'No flags yet. Be the first to post one.',
-    filtersLabel: 'Browse',
-    moderationTitle: 'Moderation rules',
-    moderationBody: 'Insults, sexual terms, and offensive content in English or French are blocked before submission.',
-    trendsTitle: 'Trending now',
+    loadMore: 'Load more',
+    endReached: 'You reached the end of the feed.',
+    loading: 'Loading flags…',
+    setupLink: 'Setup guide',
     formSuccess: 'Your flag was submitted successfully.',
-    formNeedsSetup: 'Connect Supabase to persist data and realtime sync.',
-    badWordError: 'Submission rejected: offensive or sexual language detected.',
-    shortError: 'Please write at least 8 characters.',
-    longError: 'Please keep it under 120 characters.',
-    duplicateError: 'This sentence already exists.',
-    genericError: 'Something went wrong. Please try again.',
-    voteSaved: 'Vote saved.',
+    formDemo: 'Saved locally in demo mode. Add Supabase config for persistence.',
+    voteSaved: 'Your vote was saved.',
     voteExists: 'You already voted on this flag.',
-    setupCta: 'Setup guide in README',
+    shareCopied: 'Share link copied.',
+    badWordError: 'Submission rejected: offensive or sexual language detected.',
+    shortError: `Please write at least ${MIN_LENGTH} characters.`,
+    longError: `Please keep it under ${MAX_LENGTH} characters.`,
+    duplicateError: 'This flag already exists.',
+    genericError: 'Something went wrong. Please try again.',
     statsLive: 'live flags',
     statsToday: 'new today',
     statsVotes: 'total score',
-    detectionAuto: 'Auto',
-    detectionEn: 'English',
-    detectionFr: 'French'
+    topListEmpty: 'No items yet',
+    seoFooter: 'Static frontend, SEO-friendly markup, realtime backend.',
+    filterHelp: 'Sort by trending, top score, or newest posts.',
+    configWarning: 'Supabase is not configured yet. The app is running with demo data only.'
   },
   fr: {
     appName: 'RedGreen Flags',
-    appTagline: 'Votez sur les green flags et red flags en quelques secondes.',
-    heroTitle: 'Une app bilingue, rapide et conçue pour le scroll.',
-    heroBody: 'Compatible GitHub Pages, connectée à Supabase, et pensée pour les contenus courts, le temps réel, la modération et le mobile-first.',
-    heroBullets: ['Publiez des phrases courtes jusqu’à 120 caractères.', 'Un vote local maximum par utilisateur et par flag.', 'Détection automatique anglais/français + filtrage.'],
+    appTagline: 'Publiez, votez et découvrez les green flags et red flags les plus viraux.',
+    heroTitle: 'L’app de red flags / green flags en temps réel pensée pour devenir virale.',
+    heroBody:
+      'Pur HTML, CSS et JavaScript vanilla sur GitHub Pages. Supabase gère les données et le temps réel. Aucun serveur custom nécessaire.',
+    heroBullets: [
+      'Contenu généré par les utilisateurs avec validation à 120 caractères.',
+      'Un vote local maximum par utilisateur et par flag pour limiter le spam.',
+      'Détection automatique français / anglais avec filtrage des mots interdits.'
+    ],
+    liveFeed: 'Flux en direct',
+    liveReady: 'Temps réel connecté',
+    liveDemo: 'Mode démo',
+    liveBody: 'Les nouveaux flags et les votes apparaissent instantanément quand le temps réel Supabase est activé.',
+    moderationTitle: 'Garde-fous de modération',
+    moderationBody: 'Les publications sont bloquées si elles contiennent des insultes, termes offensants ou contenu sexuel en anglais ou en français.',
     addFlag: 'Ajouter un flag',
-    sentence: 'Phrase',
-    sentencePlaceholder: 'Exemple : Ils demandent comment s’est passée ta journée et écoutent vraiment.',
+    addSubtitle: 'Restez court, clair et sûr pour un partage public.',
+    sentence: 'Texte du flag',
+    sentencePlaceholder: 'Exemple : Ils posent des questions et écoutent vraiment.',
     type: 'Type',
     green: 'Green Flag',
     red: 'Red Flag',
     language: 'Langue',
     auto: 'Détection auto',
+    detectionEn: 'Anglais',
+    detectionFr: 'Français',
     submit: 'Publier le flag',
-    recent: 'Récents',
-    top: 'Top votes',
-    trending: 'Tendance',
+    submitHint: 'La publication publique est anonyme. Ne partagez pas de données personnelles.',
+    browseLabel: 'Parcourir',
     all: 'Tous',
+    trending: 'Tendance',
+    top: 'Top votes',
+    recent: 'Récents',
     topGreen: 'Top Green Flags',
     topRed: 'Top Red Flags',
-    liveFeed: 'Flux en direct',
-    feedBody: 'Les nouvelles publications et les votes se mettent à jour ici.',
     random: 'Flag aléatoire',
     share: 'Partager',
     upvote: 'Vote +',
     downvote: 'Vote -',
     votes: 'votes',
+    score: 'score',
+    empty: 'Aucun flag pour le moment. Soyez le premier à publier.',
+    loadMore: 'Voir plus',
+    endReached: 'Vous êtes arrivé à la fin du flux.',
     loading: 'Chargement des flags…',
-    empty: 'Aucun flag pour le moment. Soyez le premier.',
-    filtersLabel: 'Parcourir',
-    moderationTitle: 'Règles de modération',
-    moderationBody: 'Les insultes, termes sexuels et contenus offensants en anglais ou en français sont bloqués avant publication.',
-    trendsTitle: 'Tendances',
+    setupLink: 'Guide de configuration',
     formSuccess: 'Votre flag a bien été publié.',
-    formNeedsSetup: 'Connectez Supabase pour la persistance et le temps réel.',
-    badWordError: 'Publication refusée : langage offensant ou sexuel détecté.',
-    shortError: 'Merci d’écrire au moins 8 caractères.',
-    longError: 'Merci de rester sous 120 caractères.',
-    duplicateError: 'Cette phrase existe déjà.',
-    genericError: 'Une erreur est survenue. Merci de réessayer.',
-    voteSaved: 'Vote enregistré.',
+    formDemo: 'Sauvegardé localement en mode démo. Ajoutez la config Supabase pour la persistance.',
+    voteSaved: 'Votre vote a été enregistré.',
     voteExists: 'Vous avez déjà voté pour ce flag.',
-    setupCta: 'Guide dans le README',
+    shareCopied: 'Lien copié.',
+    badWordError: 'Publication refusée : langage offensant ou sexuel détecté.',
+    shortError: `Merci d’écrire au moins ${MIN_LENGTH} caractères.`,
+    longError: `Merci de rester sous ${MAX_LENGTH} caractères.`,
+    duplicateError: 'Ce flag existe déjà.',
+    genericError: 'Une erreur est survenue. Merci de réessayer.',
     statsLive: 'flags en ligne',
     statsToday: 'nouveaux aujourd’hui',
     statsVotes: 'score total',
-    detectionAuto: 'Auto',
-    detectionEn: 'Anglais',
-    detectionFr: 'Français'
+    topListEmpty: 'Aucun élément',
+    seoFooter: 'Frontend statique, balisage SEO, backend temps réel.',
+    filterHelp: 'Triez par tendance, meilleur score ou nouveautés.',
+    configWarning: 'Supabase n’est pas encore configuré. L’application tourne uniquement avec des données démo.'
   }
 };
 
 const sampleFlags = [
-  { id: 'demo-1', text: 'They celebrate your wins without making it about themselves.', type: 'green', language: 'en', votes: 18, created_at: new Date(Date.now() - 1000 * 60 * 40).toISOString() },
-  { id: 'demo-2', text: 'Ils lisent vos messages mais ne répondent que quand ils ont besoin de quelque chose.', type: 'red', language: 'fr', votes: 14, created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString() },
-  { id: 'demo-3', text: 'They respect your boundaries the first time you say them.', type: 'green', language: 'en', votes: 27, created_at: new Date(Date.now() - 1000 * 60 * 200).toISOString() },
-  { id: 'demo-4', text: 'Il critique vos amis à chaque sortie pour vous isoler.', type: 'red', language: 'fr', votes: 22, created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString() }
+  {
+    id: `${DEMO_PREFIX}1`,
+    text: 'They celebrate your wins without making it about themselves.',
+    type: 'green',
+    language: 'en',
+    votes: 18,
+    created_at: new Date(Date.now() - 1000 * 60 * 40).toISOString()
+  },
+  {
+    id: `${DEMO_PREFIX}2`,
+    text: 'Ils ne répondent que lorsqu’ils ont besoin de quelque chose.',
+    type: 'red',
+    language: 'fr',
+    votes: 14,
+    created_at: new Date(Date.now() - 1000 * 60 * 95).toISOString()
+  },
+  {
+    id: `${DEMO_PREFIX}3`,
+    text: 'They respect your boundaries the first time you say them.',
+    type: 'green',
+    language: 'en',
+    votes: 26,
+    created_at: new Date(Date.now() - 1000 * 60 * 210).toISOString()
+  },
+  {
+    id: `${DEMO_PREFIX}4`,
+    text: 'Il critique vos amis à chaque sortie pour vous isoler.',
+    type: 'red',
+    language: 'fr',
+    votes: 22,
+    created_at: new Date(Date.now() - 1000 * 60 * 17).toISOString()
+  }
 ];
 
-const badWords = {
-  en: ['fuck', 'fucking', 'bitch', 'bastard', 'slut', 'whore', 'asshole', 'dick', 'cock', 'pussy', 'cum', 'rape', 'rapist', 'nigger', 'retard'],
-  fr: ['pute', 'salope', 'encule', 'enculé', 'connard', 'connasse', 'bite', 'chatte', 'sexe', 'baiser', 'nique', 'niquer', 'viol', 'violeur', 'pd']
-};
+const blockedPatterns = [
+  /\b(fuck|fucking|bitch|bastard|slut|whore|asshole|motherfucker|dick|cock|pussy|cum|rape|rapist|nigger|retard)\b/i,
+  /\b(pute|salope|encule|enculé|enculee|enculée|connard|connasse|bite|chatte|sexe|baiser|nique|niquer|viol|violeur|pd)\b/i,
+  /\b(porn|porno|nude|nudes|nsfw|xxx|anal|blowjob|branlette|fellation)\b/i
+];
 
 const state = {
   locale: detectInitialLocale(),
+  flags: [],
+  visibleCount: PAGE_SIZE,
   filterType: 'all',
   sortMode: 'trending',
-  flags: [],
-  supabase: null,
+  busy: false,
   realtimeEnabled: false,
   setupReady: false,
-  busy: false
+  supabase: null,
+  channel: null
 };
 
 const app = document.querySelector('#app');
 renderShell();
+bindStaticEvents();
 bootstrap();
 
 async function bootstrap() {
-  setLanguage(state.locale);
+  applyLocale(state.locale);
   initSupabase();
-  bindStaticEvents();
   await loadFlags();
   subscribeRealtime();
 }
 
 function initSupabase() {
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const config = window.REDGREEN_CONFIG || {};
+  const url = typeof config.SUPABASE_URL === 'string' ? config.SUPABASE_URL.trim() : '';
+  const key = typeof config.SUPABASE_ANON_KEY === 'string' ? config.SUPABASE_ANON_KEY.trim() : '';
+
   if (!url || !key) return;
-  state.supabase = createClient(url, key, { auth: { persistSession: false } });
+
+  state.supabase = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
   state.setupReady = true;
 }
 
 async function loadFlags() {
-  renderStatus(text('loading'));
+  renderStatus(t('loading'), 'success');
+
   if (!state.supabase) {
     state.flags = [...sampleFlags];
     renderAll();
-    renderStatus(text('formNeedsSetup'), 'success');
+    renderStatus(t('configWarning'), 'error');
     return;
   }
 
@@ -168,25 +238,29 @@ async function loadFlags() {
     .from('flags')
     .select('id, text, type, language, votes, created_at')
     .order('created_at', { ascending: false })
-    .limit(200);
+    .limit(250);
 
   if (error) {
     console.error(error);
     state.flags = [...sampleFlags];
     renderAll();
-    renderStatus(text('genericError'), 'error');
+    renderStatus(t('genericError'), 'error');
     return;
   }
 
-  state.flags = data ?? [];
+  state.flags = Array.isArray(data) ? data : [];
   renderAll();
+  renderStatus('', 'success', true);
 }
 
 function subscribeRealtime() {
   if (!state.supabase) return;
-  state.supabase
+
+  state.channel = state.supabase
     .channel('flags-feed')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'flags' }, () => loadFlags())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'flags' }, async () => {
+      await loadFlags();
+    })
     .subscribe((status) => {
       state.realtimeEnabled = status === 'SUBSCRIBED';
       renderMeta();
@@ -197,27 +271,26 @@ function bindStaticEvents() {
   app.addEventListener('click', async (event) => {
     const target = event.target.closest('[data-action]');
     if (!target) return;
-    const action = target.dataset.action;
 
-    if (action === 'set-locale') {
-      setLanguage(target.dataset.locale);
-    }
+    const { action } = target.dataset;
+
+    if (action === 'set-locale') applyLocale(target.dataset.locale);
     if (action === 'set-type') {
-      state.filterType = target.dataset.type;
+      state.filterType = target.dataset.type || 'all';
+      state.visibleCount = PAGE_SIZE;
       renderAll();
     }
     if (action === 'set-sort') {
-      state.sortMode = target.dataset.sort;
+      state.sortMode = target.dataset.sort || 'trending';
+      state.visibleCount = PAGE_SIZE;
       renderAll();
     }
-    if (action === 'random-flag') {
-      focusRandomFlag();
-    }
-    if (action === 'share-flag') {
-      await shareFlag(target.dataset.id);
-    }
-    if (action === 'vote') {
-      await handleVote(target.dataset.id, Number(target.dataset.delta));
+    if (action === 'random-flag') focusRandomFlag();
+    if (action === 'share-flag') await shareFlag(target.dataset.id);
+    if (action === 'vote') await handleVote(target.dataset.id, Number(target.dataset.delta));
+    if (action === 'load-more') {
+      state.visibleCount += PAGE_SIZE;
+      renderFeed();
     }
   });
 
@@ -226,13 +299,42 @@ function bindStaticEvents() {
     event.preventDefault();
     await submitFlag(event.target);
   });
+
+  const form = app.querySelector('#flag-form');
+  const textarea = form.querySelector('textarea[name="text"]');
+  const typeButtons = [...form.querySelectorAll('[data-type-value]')];
+
+  textarea.addEventListener('input', () => {
+    app.querySelector('#counter').textContent = `${textarea.value.trim().length} / ${MAX_LENGTH}`;
+  });
+
+  typeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      form.elements.type.value = button.dataset.typeValue;
+      syncTypeButtons();
+    });
+  });
+
+  const sentinel = app.querySelector('#feed-sentinel');
+  if ('IntersectionObserver' in window && sentinel) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting) && state.visibleCount < getVisibleFlags().length) {
+          state.visibleCount += PAGE_SIZE;
+          renderFeed();
+        }
+      },
+      { rootMargin: '300px 0px' }
+    );
+    observer.observe(sentinel);
+  }
 }
 
 function renderShell() {
   app.innerHTML = `
     <header class="header">
       <div class="header-inner">
-        <a class="brand" href="#top">
+        <a class="brand" href="#top" aria-label="RedGreen Flags home">
           <div class="brand-mark">RG</div>
           <div class="brand-copy"><strong></strong><span></span></div>
         </a>
@@ -245,6 +347,7 @@ function renderShell() {
         </div>
       </div>
     </header>
+
     <main id="main" class="app-shell">
       <section class="hero">
         <article class="hero-panel">
@@ -254,16 +357,21 @@ function renderShell() {
           <ul class="hero-list" id="hero-list"></ul>
           <div class="stats" id="stats"></div>
         </article>
+
         <aside class="hero-side">
           <section class="story">
-            <div class="section-head"><h2 id="live-title"></h2><span class="pill" id="live-pill"></span></div>
+            <div class="section-head">
+              <h2 id="live-title"></h2>
+              <span class="pill" id="live-pill"></span>
+            </div>
             <p class="muted" id="live-body"></p>
             <div class="story-list" id="top-lists"></div>
           </section>
+
           <section class="story">
             <h2 id="moderation-title"></h2>
-            <p id="moderation-body" class="muted"></p>
-            <p class="help">Supabase + GitHub Pages friendly. No custom server required.</p>
+            <p class="muted" id="moderation-body"></p>
+            <p class="help" id="filter-help"></p>
           </section>
         </aside>
       </section>
@@ -278,6 +386,7 @@ function renderShell() {
               <button data-action="set-type" data-type="red"></button>
             </div>
           </div>
+
           <div class="filter-group">
             <div class="segmented" id="sort-filters">
               <button class="sort-btn" data-action="set-sort" data-sort="trending"></button>
@@ -291,24 +400,30 @@ function renderShell() {
       <section class="grid">
         <section>
           <div class="feed" id="feed"></div>
+          <div id="feed-controls" class="feed-controls"></div>
+          <div id="feed-sentinel" aria-hidden="true"></div>
         </section>
+
         <aside class="panel">
           <div>
             <h2 id="form-title"></h2>
             <p class="muted" id="form-subtitle"></p>
           </div>
+
           <form id="flag-form">
             <div class="form-row">
               <button type="button" class="btn green" data-type-value="green"></button>
-              <button type="button" class="btn red" data-type-value="red"></button>
+              <button type="button" class="btn red secondary" data-type-value="red"></button>
             </div>
             <input type="hidden" name="type" value="green" />
+
             <label>
               <span class="help" id="sentence-label"></span>
               <textarea class="textarea" name="text" maxlength="120" required></textarea>
             </label>
-            <div class="form-row">
-              <label style="flex:1; min-width: 180px;">
+
+            <div class="form-row compact">
+              <label class="input-wrap grow">
                 <span class="help" id="language-label"></span>
                 <select class="select" name="language">
                   <option value="auto"></option>
@@ -316,12 +431,15 @@ function renderShell() {
                   <option value="fr"></option>
                 </select>
               </label>
-              <div style="display:grid; align-content:end; flex:1; min-width:180px;">
+              <div class="counter-wrap">
                 <span class="counter" id="counter">0 / 120</span>
               </div>
             </div>
+
+            <p class="help" id="submit-hint"></p>
             <button class="btn" id="submit-btn" type="submit"></button>
           </form>
+
           <div id="form-alert" class="inline-alert hide"></div>
           <a class="help" href="./README.md" target="_blank" rel="noreferrer" id="setup-link"></a>
         </aside>
@@ -329,57 +447,50 @@ function renderShell() {
 
       <footer class="footer-inner">
         <div class="story">
-          <strong>SEO + static deployment ready</strong>
-          <p class="footer-note">This app renders meaningful HTML, ships static assets only, and works on GitHub Pages with Supabase as the external backend.</p>
+          <strong id="footer-title">SEO + static deployment ready</strong>
+          <p class="footer-note" id="footer-note"></p>
         </div>
       </footer>
     </main>
+
     <div id="toast" class="toast hide"></div>
   `;
-
-  const form = app.querySelector('#flag-form');
-  const textarea = form.querySelector('textarea[name="text"]');
-  const typeButtons = [...form.querySelectorAll('[data-type-value]')];
-  textarea.addEventListener('input', () => {
-    app.querySelector('#counter').textContent = `${textarea.value.length} / ${MAX_LENGTH}`;
-  });
-  typeButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      form.type.value = button.dataset.typeValue;
-      typeButtons.forEach((btn) => btn.classList.toggle('secondary', btn !== button));
-    });
-  });
 }
 
 function renderAll() {
   renderCopy();
   renderMeta();
-  renderFeed();
   renderStories();
+  renderFeed();
+  syncTypeButtons();
 }
 
 function renderCopy() {
   document.documentElement.lang = state.locale;
   const copy = translations[state.locale];
+
   app.querySelector('.brand-copy strong').textContent = copy.appName;
   app.querySelector('.brand-copy span').textContent = copy.appTagline;
   app.querySelector('[data-action="random-flag"]').textContent = copy.random;
-  app.querySelector('#hero-kicker').textContent = state.realtimeEnabled ? 'Realtime on' : 'Static frontend';
+  app.querySelector('#hero-kicker').textContent = state.realtimeEnabled ? copy.liveReady : copy.liveDemo;
   app.querySelector('#hero-title').textContent = copy.heroTitle;
   app.querySelector('#hero-body').textContent = copy.heroBody;
-  app.querySelector('#hero-list').innerHTML = copy.heroBullets.map((item) => `<li>${item}</li>`).join('');
+  app.querySelector('#hero-list').innerHTML = copy.heroBullets.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
   app.querySelector('#live-title').textContent = copy.liveFeed;
-  app.querySelector('#live-body').textContent = copy.feedBody;
-  app.querySelector('#browse-label').textContent = copy.filtersLabel;
+  app.querySelector('#live-body').textContent = copy.liveBody;
   app.querySelector('#moderation-title').textContent = copy.moderationTitle;
   app.querySelector('#moderation-body').textContent = copy.moderationBody;
+  app.querySelector('#filter-help').textContent = copy.filterHelp;
+  app.querySelector('#browse-label').textContent = copy.browseLabel;
   app.querySelector('#form-title').textContent = copy.addFlag;
-  app.querySelector('#form-subtitle').textContent = copy.heroBullets[0];
+  app.querySelector('#form-subtitle').textContent = copy.addSubtitle;
   app.querySelector('#sentence-label').textContent = copy.sentence;
   app.querySelector('textarea[name="text"]').placeholder = copy.sentencePlaceholder;
   app.querySelector('#language-label').textContent = copy.language;
+  app.querySelector('#submit-hint').textContent = copy.submitHint;
   app.querySelector('#submit-btn').textContent = copy.submit;
-  app.querySelector('#setup-link').textContent = copy.setupCta;
+  app.querySelector('#setup-link').textContent = copy.setupLink;
+  app.querySelector('#footer-note').textContent = copy.seoFooter;
   app.querySelector('#type-filters [data-type="all"]').textContent = copy.all;
   app.querySelector('#type-filters [data-type="green"]').textContent = copy.green;
   app.querySelector('#type-filters [data-type="red"]').textContent = copy.red;
@@ -388,22 +499,29 @@ function renderCopy() {
   app.querySelector('#sort-filters [data-sort="recent"]').textContent = copy.recent;
   app.querySelector('button[data-type-value="green"]').textContent = copy.green;
   app.querySelector('button[data-type-value="red"]').textContent = copy.red;
-  app.querySelector('select[name="language"] option[value="auto"]').textContent = copy.detectionAuto;
+  app.querySelector('select[name="language"] option[value="auto"]').textContent = copy.auto;
   app.querySelector('select[name="language"] option[value="en"]').textContent = copy.detectionEn;
   app.querySelector('select[name="language"] option[value="fr"]').textContent = copy.detectionFr;
-  [...app.querySelectorAll('.lang-btn')].forEach((button) => button.classList.toggle('active', button.dataset.locale === state.locale));
-  [...app.querySelectorAll('#type-filters button')].forEach((button) => button.classList.toggle('active', button.dataset.type === state.filterType));
-  [...app.querySelectorAll('#sort-filters button')].forEach((button) => button.classList.toggle('active', button.dataset.sort === state.sortMode));
+
+  [...app.querySelectorAll('.lang-btn')].forEach((button) => {
+    button.classList.toggle('active', button.dataset.locale === state.locale);
+  });
+  [...app.querySelectorAll('#type-filters button')].forEach((button) => {
+    button.classList.toggle('active', button.dataset.type === state.filterType);
+  });
+  [...app.querySelectorAll('#sort-filters button')].forEach((button) => {
+    button.classList.toggle('active', button.dataset.sort === state.sortMode);
+  });
 }
 
 function renderMeta() {
-  const liveFlags = state.flags.length;
-  const todayCount = state.flags.filter((flag) => Date.now() - new Date(flag.created_at).getTime() < 86400000).length;
-  const totalVotes = state.flags.reduce((sum, flag) => sum + (flag.votes ?? 0), 0);
   const copy = translations[state.locale];
-  app.querySelector('#live-pill').textContent = state.realtimeEnabled ? 'Realtime' : 'Demo / setup mode';
+  const todayCount = state.flags.filter((flag) => Date.now() - new Date(flag.created_at).getTime() < 86400000).length;
+  const totalVotes = state.flags.reduce((sum, flag) => sum + Number(flag.votes || 0), 0);
+
+  app.querySelector('#live-pill').textContent = state.realtimeEnabled ? copy.liveReady : copy.liveDemo;
   app.querySelector('#stats').innerHTML = `
-    <div class="stat"><strong>${liveFlags}</strong><span>${copy.statsLive}</span></div>
+    <div class="stat"><strong>${state.flags.length}</strong><span>${copy.statsLive}</span></div>
     <div class="stat"><strong>${todayCount}</strong><span>${copy.statsToday}</span></div>
     <div class="stat"><strong>${totalVotes}</strong><span>${copy.statsVotes}</span></div>
   `;
@@ -411,58 +529,87 @@ function renderMeta() {
 
 function renderStories() {
   const copy = translations[state.locale];
-  const greenTop = state.flags.filter((flag) => flag.type === 'green').sort(sorters.top).slice(0, 3);
-  const redTop = state.flags.filter((flag) => flag.type === 'red').sort(sorters.top).slice(0, 3);
+  const topGreen = state.flags.filter((flag) => flag.type === 'green').sort(sorters.top).slice(0, 3);
+  const topRed = state.flags.filter((flag) => flag.type === 'red').sort(sorters.top).slice(0, 3);
+
   app.querySelector('#top-lists').innerHTML = `
     <div class="story-item">
       <strong>${copy.topGreen}</strong>
-      ${greenTop.length ? greenTop.map((flag) => `<div>${escapeHtml(flag.text)} · ${flag.votes}</div>`).join('') : `<div>${copy.empty}</div>`}
+      ${renderStoryRows(topGreen, copy)}
     </div>
     <div class="story-item">
       <strong>${copy.topRed}</strong>
-      ${redTop.length ? redTop.map((flag) => `<div>${escapeHtml(flag.text)} · ${flag.votes}</div>`).join('') : `<div>${copy.empty}</div>`}
+      ${renderStoryRows(topRed, copy)}
     </div>
   `;
+}
+
+function renderStoryRows(items, copy) {
+  if (!items.length) return `<div>${copy.topListEmpty}</div>`;
+  return items
+    .map((item) => `<div class="story-row"><span>${escapeHtml(item.text)}</span><b>${item.votes}</b></div>`)
+    .join('');
 }
 
 function renderFeed() {
   const copy = translations[state.locale];
   const feed = app.querySelector('#feed');
-  const items = getVisibleFlags();
-  if (!items.length) {
+  const controls = app.querySelector('#feed-controls');
+  const visible = getVisibleFlags();
+  const items = visible.slice(0, state.visibleCount);
+
+  if (!visible.length) {
     feed.innerHTML = `<div class="empty">${copy.empty}</div>`;
+    controls.innerHTML = '';
     return;
   }
+
   feed.innerHTML = items.map((flag) => renderCard(flag, copy)).join('');
+
+  if (state.visibleCount < visible.length) {
+    controls.innerHTML = `<button class="btn secondary load-more" data-action="load-more">${copy.loadMore}</button>`;
+  } else {
+    controls.innerHTML = `<p class="muted end-copy">${copy.endReached}</p>`;
+  }
 }
 
 function renderCard(flag, copy) {
   const voteState = getVotes();
-  const userVote = voteState[flag.id] ?? 0;
+  const myVote = voteState[flag.id] ?? 0;
+  const score = Number(flag.votes || 0);
   const shareUrl = `${location.origin}${location.pathname}#flag-${flag.id}`;
-  const percent = Math.max(8, Math.min(100, 50 + (flag.votes || 0) * 4));
+  const scoreWidth = Math.max(6, Math.min(100, 50 + score * 3));
+
   return `
-    <article class="card" id="flag-${flag.id}" data-type="${flag.type}">
+    <article class="card reveal" id="flag-${flag.id}" data-type="${flag.type}">
       <div class="card-head">
-        <div>
+        <div class="badge-group">
           <span class="badge ${flag.type}">${flag.type === 'green' ? copy.green : copy.red}</span>
           <span class="badge language">${flag.language.toUpperCase()}</span>
         </div>
-        <button class="icon-btn" data-action="share-flag" data-id="${flag.id}" aria-label="${copy.share}">${copy.share}</button>
+        <button class="icon-btn" data-action="share-flag" data-id="${flag.id}">${copy.share}</button>
       </div>
+
       <h3>${escapeHtml(flag.text)}</h3>
+
       <div class="card-meta">
         <span>${timeAgo(flag.created_at, state.locale)}</span>
         <span>•</span>
-        <span>${flag.votes} ${copy.votes}</span>
+        <span>${score} ${copy.votes}</span>
         <span>•</span>
-        <span>${shareUrl}</span>
+        <span class="share-url">${escapeHtml(shareUrl)}</span>
       </div>
+
       <div class="vote-row">
-        <div class="vote-meter" aria-hidden="true"><span class="fill ${flag.type}" style="width:${percent}%"></span></div>
+        <div class="vote-summary">
+          <div class="vote-meter" aria-hidden="true">
+            <span class="fill ${flag.type}" style="width:${scoreWidth}%"></span>
+          </div>
+          <small>${copy.score}: ${score}</small>
+        </div>
         <div class="vote-actions">
-          <button class="vote-btn ${userVote === 1 ? 'active up' : ''}" data-action="vote" data-id="${flag.id}" data-delta="1">👍 ${copy.upvote}</button>
-          <button class="vote-btn ${userVote === -1 ? 'active down' : ''}" data-action="vote" data-id="${flag.id}" data-delta="-1">👎 ${copy.downvote}</button>
+          <button class="vote-btn ${myVote === 1 ? 'active up' : ''}" data-action="vote" data-id="${flag.id}" data-delta="1">👍 ${copy.upvote}</button>
+          <button class="vote-btn ${myVote === -1 ? 'active down' : ''}" data-action="vote" data-id="${flag.id}" data-delta="-1">👎 ${copy.downvote}</button>
         </div>
       </div>
     </article>
@@ -471,76 +618,94 @@ function renderCard(flag, copy) {
 
 async function submitFlag(form) {
   if (state.busy) return;
+
   const formData = new FormData(form);
-  const textValue = String(formData.get('text') || '').trim();
+  const text = String(formData.get('text') || '').trim().replace(/\s+/g, ' ');
   const type = String(formData.get('type') || 'green');
   const forcedLanguage = String(formData.get('language') || 'auto');
-  const language = forcedLanguage === 'auto' ? detectLanguage(textValue) : forcedLanguage;
+  const language = forcedLanguage === 'auto' ? detectLanguage(text) : forcedLanguage;
 
-  if (textValue.length < 8) return renderStatus(text('shortError'), 'error');
-  if (textValue.length > MAX_LENGTH) return renderStatus(text('longError'), 'error');
-  if (containsBadWords(textValue)) return renderStatus(text('badWordError'), 'error');
-  if (state.flags.some((flag) => flag.text.toLowerCase() === textValue.toLowerCase())) return renderStatus(text('duplicateError'), 'error');
+  if (text.length < MIN_LENGTH) return renderStatus(t('shortError'), 'error');
+  if (text.length > MAX_LENGTH) return renderStatus(t('longError'), 'error');
+  if (containsBadWords(text)) return renderStatus(t('badWordError'), 'error');
+  if (state.flags.some((flag) => normalize(flag.text) === normalize(text))) return renderStatus(t('duplicateError'), 'error');
 
   state.busy = true;
-  const payload = { text: textValue, type, language, votes: 0 };
+  toggleSubmit(true);
+
+  const payload = {
+    text,
+    type: type === 'red' ? 'red' : 'green',
+    language: language === 'fr' ? 'fr' : 'en',
+    votes: 0
+  };
 
   try {
     if (!state.supabase) {
       state.flags.unshift({ ...payload, id: crypto.randomUUID(), created_at: new Date().toISOString() });
-      form.reset();
-      form.type.value = 'green';
-      app.querySelector('#counter').textContent = '0 / 120';
-      renderAll();
-      renderStatus(text('formNeedsSetup'), 'success');
+      afterSuccessfulSubmit(form);
+      renderStatus(t('formDemo'), 'success');
       return;
     }
 
     const { error } = await state.supabase.from('flags').insert(payload);
     if (error) throw error;
-    form.reset();
-    form.type.value = 'green';
-    app.querySelector('#counter').textContent = '0 / 120';
-    renderStatus(text('formSuccess'), 'success');
+
+    afterSuccessfulSubmit(form);
+    renderStatus(t('formSuccess'), 'success');
     await loadFlags();
   } catch (error) {
     console.error(error);
-    renderStatus(text('genericError'), 'error');
+    renderStatus(t('genericError'), 'error');
   } finally {
     state.busy = false;
+    toggleSubmit(false);
   }
 }
 
+function afterSuccessfulSubmit(form) {
+  form.reset();
+  form.elements.type.value = 'green';
+  state.visibleCount = PAGE_SIZE;
+  app.querySelector('#counter').textContent = `0 / ${MAX_LENGTH}`;
+  renderAll();
+}
+
 async function handleVote(id, delta) {
-  const votes = getVotes();
-  if (votes[id]) {
-    showToast(text('voteExists'));
+  const voteMap = getVotes();
+  if (voteMap[id]) {
+    showToast(t('voteExists'));
     return;
   }
 
   const flag = state.flags.find((item) => item.id === id);
   if (!flag) return;
 
-  votes[id] = delta;
-  localStorage.setItem(STORAGE_KEYS.votes, JSON.stringify(votes));
-  flag.votes += delta;
-  renderAll();
-  showToast(text('voteSaved'));
+  voteMap[id] = delta;
+  localStorage.setItem(STORAGE_KEYS.votes, JSON.stringify(voteMap));
 
-  if (!state.supabase || String(id).startsWith('demo-')) return;
-  const { error } = await state.supabase.from('flags').update({ votes: flag.votes }).eq('id', id);
+  const nextVotes = Number(flag.votes || 0) + delta;
+  flag.votes = nextVotes;
+  renderAll();
+  showToast(t('voteSaved'));
+
+  if (!state.supabase || String(id).startsWith(DEMO_PREFIX)) return;
+
+  const { error } = await state.supabase.from('flags').update({ votes: nextVotes }).eq('id', id);
   if (error) console.error(error);
 }
 
 async function shareFlag(id) {
   const url = `${location.origin}${location.pathname}#flag-${id}`;
+
   try {
     if (navigator.share) {
-      await navigator.share({ title: text('appName'), url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      showToast('Link copied.');
+      await navigator.share({ title: t('appName'), url });
+      return;
     }
+
+    await navigator.clipboard.writeText(url);
+    showToast(t('shareCopied'));
   } catch (error) {
     console.error(error);
   }
@@ -549,8 +714,9 @@ async function shareFlag(id) {
 function focusRandomFlag() {
   const visible = getVisibleFlags();
   if (!visible.length) return;
-  const random = visible[Math.floor(Math.random() * visible.length)];
-  document.querySelector(`#flag-${CSS.escape(random.id)}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  const target = visible[Math.floor(Math.random() * visible.length)];
+  document.querySelector(`#flag-${CSS.escape(target.id)}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function getVisibleFlags() {
@@ -561,24 +727,25 @@ function getVisibleFlags() {
 
 const sorters = {
   recent: (a, b) => new Date(b.created_at) - new Date(a.created_at),
-  top: (a, b) => (b.votes || 0) - (a.votes || 0),
+  top: (a, b) => Number(b.votes || 0) - Number(a.votes || 0),
   trending: (a, b) => trendingScore(b) - trendingScore(a)
 };
 
 function trendingScore(flag) {
+  const votes = Number(flag.votes || 0);
   const ageHours = Math.max(1, (Date.now() - new Date(flag.created_at).getTime()) / 36e5);
-  return (flag.votes || 0) + 12 / ageHours;
+  return votes * 3 + 24 / ageHours;
 }
 
 function detectLanguage(value) {
-  const lower = normalize(value);
-  const frenchSignals = [' le ', ' la ', ' les ', ' des ', ' une ', ' un ', ' vous ', ' avec ', ' pas ', ' pour ', ' ils ', ' elles ', ' tu ', ' est ', ' être ', 'ça', 'qui'];
-  return frenchSignals.some((token) => lower.includes(token.trim()) || lower.includes(token)) ? 'fr' : 'en';
+  const normalized = normalize(` ${value} `);
+  const frenchSignals = [' le ', ' la ', ' les ', ' une ', ' un ', ' avec ', ' vous ', ' pas ', ' ils ', ' elles ', ' est ', ' pour ', ' que ', ' qui ', ' nous ', ' votre '];
+  return frenchSignals.some((token) => normalized.includes(token)) ? 'fr' : 'en';
 }
 
 function containsBadWords(value) {
   const normalized = normalize(value);
-  return [...badWords.en, ...badWords.fr].some((word) => normalized.includes(normalize(word)));
+  return blockedPatterns.some((pattern) => pattern.test(normalized));
 }
 
 function normalize(value) {
@@ -589,12 +756,12 @@ function normalize(value) {
 }
 
 function detectInitialLocale() {
-  const stored = localStorage.getItem(STORAGE_KEYS.locale);
-  if (stored === 'fr' || stored === 'en') return stored;
+  const saved = localStorage.getItem(STORAGE_KEYS.locale);
+  if (saved === 'fr' || saved === 'en') return saved;
   return navigator.language.toLowerCase().startsWith('fr') ? 'fr' : 'en';
 }
 
-function setLanguage(locale) {
+function applyLocale(locale) {
   state.locale = locale === 'fr' ? 'fr' : 'en';
   localStorage.setItem(STORAGE_KEYS.locale, state.locale);
   renderAll();
@@ -608,10 +775,32 @@ function getVotes() {
   }
 }
 
-function renderStatus(message, type = 'error') {
+function toggleSubmit(disabled) {
+  const button = app.querySelector('#submit-btn');
+  if (button) button.disabled = disabled;
+}
+
+function syncTypeButtons() {
+  const form = app.querySelector('#flag-form');
+  if (!form) return;
+  const currentType = form.elements.type.value;
+  [...form.querySelectorAll('[data-type-value]')].forEach((button) => {
+    button.classList.toggle('secondary', button.dataset.typeValue !== currentType);
+  });
+}
+
+function renderStatus(message, type = 'error', hidden = false) {
   const alert = app.querySelector('#form-alert');
-  alert.textContent = message;
+  if (!alert) return;
+
+  if (hidden || !message) {
+    alert.className = 'inline-alert hide';
+    alert.textContent = '';
+    return;
+  }
+
   alert.className = `inline-alert ${type}`;
+  alert.textContent = message;
 }
 
 function showToast(message) {
@@ -619,24 +808,34 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.remove('hide');
   clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => toast.classList.add('hide'), 2200);
+  showToast.timer = setTimeout(() => toast.classList.add('hide'), 2400);
 }
 
-function text(key) {
+function t(key) {
   return translations[state.locale][key];
 }
 
 function timeAgo(dateString, locale) {
-  const diff = Date.now() - new Date(dateString).getTime();
+  const diffMs = new Date(dateString).getTime() - Date.now();
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  const mins = Math.round(diff / 60000);
-  if (mins < 60) return rtf.format(-mins, 'minute');
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return rtf.format(-hours, 'hour');
-  const days = Math.round(hours / 24);
-  return rtf.format(-days, 'day');
+  const minutes = Math.round(diffMs / 60000);
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, 'minute');
+  const hours = Math.round(diffMs / 3600000);
+  if (Math.abs(hours) < 24) return rtf.format(hours, 'hour');
+  const days = Math.round(diffMs / 86400000);
+  return rtf.format(days, 'day');
 }
 
 function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
+if (!localStorage.getItem(STORAGE_KEYS.sessionId)) {
+  localStorage.setItem(STORAGE_KEYS.sessionId, crypto.randomUUID());
 }
