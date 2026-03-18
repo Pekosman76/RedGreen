@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Generated/static binary assets
+assets/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.zip

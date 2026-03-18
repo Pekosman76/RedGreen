@@ -1,83 +1,142 @@
 # RedGreen Flags
 
-RedGreen Flags is a static, mobile-first voting app for short **Green Flag** and **Red Flag** posts. The frontend is plain HTML/CSS/JavaScript built with Vite so it can be deployed directly to **GitHub Pages**, while persistence and realtime sync come from **Supabase**.
+RedGreen Flags is now a **fully static viral voting web app** built with **HTML + CSS + vanilla JavaScript**. It is designed to run directly on **GitHub Pages** while using **Supabase only** for persistence and realtime updates.
 
-## Why the old project did not work
+---
 
-The original codebase had several architectural issues:
+## 1. Analysis of the original project issues
 
-- `vite build` only transformed two modules because `index.html` never loaded `index.tsx`, so the React app was not actually bootstrapped.
-- The app mixed Vite bundling with browser `importmap` CDN imports, which is fragile and unnecessary for GitHub Pages.
-- The UI depended on Tailwind CDN classes and a React SPA structure, but the production build emitted essentially a mostly empty page.
-- Moderation depended on `@google/genai` and environment-driven client-side AI calls, which are not appropriate for a simple GitHub Pages deployment.
-- The data model in the UI did not match the requested backend model (`flags` table with `text`, `type`, `language`, `votes`, `created_at`).
-- There was no real persistent database, no Supabase/Firebase integration, and no true realtime sync.
+The current repository already contained a partial rebuild, but it still had several issues that blocked the architecture requested in your brief.
 
-## Stack
+### Why it did not fully match the goal
 
-- **Frontend:** HTML + CSS + vanilla JS
-- **Build tool:** Vite
-- **Backend:** Supabase
-- **Realtime:** Supabase realtime on `public.flags`
-- **Hosting:** GitHub Pages for frontend + Supabase for data
+1. **It still depended on Vite-only env injection.**
+   - The previous `js/main.js` read `import.meta.env.VITE_SUPABASE_URL` and `import.meta.env.VITE_SUPABASE_ANON_KEY`.
+   - That works only after a Vite build step.
+   - A plain GitHub Pages deployment cannot read those values at runtime from static files.
 
-## Project structure
+2. **It was not truly “pure static” at runtime.**
+   - The UI itself was vanilla JS, but configuration relied on bundler behavior.
+   - That made deployment more fragile than necessary.
+
+3. **The Supabase schema was close but not fully aligned with the brief.**
+   - The SQL used `gen_random_uuid()` instead of the requested `uuid_generate_v4()`.
+   - The policy intent said “allow UPDATE votes only”, but the database also needs column-level privileges to make that real for the `anon` role.
+
+4. **Infinite scroll was missing.**
+   - The feed loaded all records at once and did not progressively reveal more content.
+
+5. **The moderation layer was too simple.**
+   - It only checked a small word list with plain substring matching.
+   - It did not combine regex patterns and broader offensive/sexual vocabulary coverage.
+
+6. **Deployment instructions still assumed a build pipeline first.**
+   - The new target is simpler: direct static hosting on GitHub Pages plus Supabase.
+   - Build tooling should be optional, not required.
+
+7. **The project structure in documentation did not match the actual runtime needs.**
+   - There was no static runtime config file for GitHub Pages.
+   - That meant there was no clean path to configure Supabase without editing source code or bundling.
+
+---
+
+## 2. Final architecture
+
+### Frontend
+- Pure **HTML / CSS / Vanilla JS**
+- Static files only
+- Directly compatible with **GitHub Pages**
+- No Node.js required in production
+- No custom backend server
+
+### Backend
+- **Supabase only**
+- Database table: `public.flags`
+- Realtime updates via Supabase realtime
+- Public insert/select and restricted vote updates
+
+---
+
+## 3. Final project structure
 
 ```text
 .
+├── assets/
 ├── index.html
 ├── styles.css
 ├── js/
+│   ├── config.example.js
+│   ├── config.js
 │   └── main.js
 ├── supabase/
 │   └── schema.sql
-├── vite.config.ts
 ├── package.json
 └── README.md
 ```
 
-## Local development
+---
 
-```bash
-npm install
-npm run dev
-```
+## 4. File overview
 
-If Supabase environment variables are not configured, the app still runs in **demo mode** with sample data so the UI stays functional.
+### `index.html`
+- Static shell
+- SEO meta tags
+- Loads `js/config.js` first
+- Loads `js/main.js` as an ES module
 
-## Environment variables
+### `styles.css`
+- Clean mobile-first UI
+- Modern cards, badges, sticky panel, animations
+- Responsive layout
 
-Create a `.env.local` file:
+### `js/config.js`
+- Runtime config file for GitHub Pages
+- Holds public Supabase URL and anon key
+- Safe for public deployment because Supabase anon keys are designed to be public
 
-```bash
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-```
+### `js/config.example.js`
+- Copy/paste template for configuration
 
-Vite exposes variables prefixed with `VITE_` to the browser.
+### `js/main.js`
+Implements:
+- bilingual UI (EN/FR)
+- browser language detection
+- Supabase connection
+- loading flags
+- inserting flags
+- local anti-spam voting
+- realtime subscriptions
+- trending sort
+- random flag button
+- share button
+- infinite scroll
+- bad-word filtering
 
-## Supabase setup
+### `supabase/schema.sql`
+Contains:
+- enum creation
+- `flags` table
+- RLS
+- column-level vote update permissions
+- realtime publication registration
 
-### 1. Create a Supabase project
+---
 
-Create a new Supabase project from the Supabase dashboard.
+## 5. Supabase SQL setup
 
-### 2. Create the database schema
-
-Open the SQL editor and run:
+Run this SQL in the Supabase SQL editor:
 
 ```sql
--- file: supabase/schema.sql
-create extension if not exists pgcrypto;
+create extension if not exists "uuid-ossp";
 
-create type flag_type as enum ('green', 'red');
-create type flag_language as enum ('fr', 'en');
+create type public.flag_type as enum ('green', 'red');
+create type public.flag_language as enum ('fr', 'en');
 
 create table if not exists public.flags (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key default uuid_generate_v4(),
   text varchar(120) not null unique,
-  type flag_type not null,
-  language flag_language not null,
+  type public.flag_type not null,
+  language public.flag_language not null,
   votes integer not null default 0,
   created_at timestamptz not null default timezone('utc', now())
 );
@@ -87,81 +146,164 @@ create index if not exists flags_created_at_idx on public.flags (created_at desc
 
 alter table public.flags enable row level security;
 
+revoke all on public.flags from anon, authenticated;
+grant select, insert on public.flags to anon, authenticated;
+grant update (votes) on public.flags to anon, authenticated;
+
 create policy "Public read flags"
-  on public.flags for select
+  on public.flags
+  for select
   using (true);
 
 create policy "Public insert flags"
-  on public.flags for insert
-  with check (char_length(text) between 8 and 120);
+  on public.flags
+  for insert
+  with check (
+    char_length(trim(text)) between 8 and 120
+    and type in ('green', 'red')
+    and language in ('fr', 'en')
+  );
 
-create policy "Public update votes"
-  on public.flags for update
+create policy "Public update votes only"
+  on public.flags
+  for update
   using (true)
   with check (votes between -999999 and 999999);
+
+alter publication supabase_realtime add table public.flags;
 ```
 
-### 3. Enable realtime
+### Important security note
+Postgres RLS policies do **not** by themselves restrict updates to only one column.
+To enforce **“update votes only”**, this project uses both:
+- **RLS policy** for row access
+- **column-level `GRANT UPDATE (votes)`** permissions for `anon` and `authenticated`
 
-In Supabase:
+That is the correct Supabase/Postgres approach for this requirement.
 
-- Go to **Database** → **Replication**.
-- Enable realtime for the `public.flags` table.
+---
 
-### 4. Get public credentials
+## 6. Bad word filter behavior
+
+The frontend rejects content if it contains:
+- insults in English
+- insults in French
+- sexual content terms
+- offensive slurs
+
+Implementation uses:
+- predefined lists
+- simple regex patterns
+- normalized comparison (lowercase + accent removal)
+
+### Examples blocked
+- English insults/slurs
+- French insults/slurs
+- sexual vocabulary like `porn`, `xxx`, `blowjob`, `branlette`, etc.
+
+---
+
+## 7. App features included
+
+### User-generated content
+Users can:
+- add a **Green Flag** or **Red Flag**
+- write short text up to **120 characters**
+- auto-detect EN/FR or force the language manually
+
+### Voting system
+Each card has:
+- 👍 upvote
+- 👎 downvote
+
+Rules:
+- one vote per user per flag
+- vote state stored in `localStorage`
+- optimistic UI updates
+- Supabase vote total updated remotely
+
+### Realtime
+Using Supabase realtime:
+- new flags appear instantly
+- vote changes refresh live
+
+### Multi-language
+- browser language detection
+- EN/FR switcher
+- stored locale in `localStorage`
+- language stored in the database
+
+### UI / UX
+- mobile-first layout
+- trending/top/recent sorting
+- infinite scroll behavior
+- smooth card reveal animation
+- sticky submission panel on desktop
+
+### Bonus features
+- trending algorithm based on **votes + recency**
+- random flag button
+- share button with Web Share API / clipboard fallback
+- SEO tags in `index.html`
+- demo mode if Supabase is not configured yet
+
+---
+
+## 8. Configuration
+
+Because GitHub Pages serves static files, browser JavaScript cannot read raw environment variables directly at runtime.
+So the recommended pattern is:
+
+- keep config in `js/config.js` locally
+- generate that file from environment variables in GitHub Actions for deployment
+
+### Local development config
 
 Copy:
 
-- `Project URL`
-- `anon public key`
-
-Add them to `.env.local` locally and to GitHub Actions secrets if you automate deployment.
-
-## Moderation behavior
-
-The app blocks submissions if they:
-
-- are shorter than 8 characters
-- are longer than 120 characters
-- contain English or French bad words / insults / sexual terms
-- duplicate an existing sentence already loaded in the feed
-
-Language is auto-detected with lightweight heuristics, but users can manually override EN/FR before submitting.
-
-## Voting behavior
-
-- Each card has **upvote** and **downvote** controls.
-- The app stores one local vote per user per item using `localStorage`.
-- Vote totals are written back to Supabase by updating the `votes` integer.
-- Cards can be sorted by **Trending**, **Top votes**, or **Recent**.
-
-## Bonus features included
-
-- **Trending algorithm**: boosts newer posts with good vote counts
-- **Random flag button**
-- **Share button** using Web Share API or clipboard fallback
-- **Bilingual UI** with automatic locale detection
-- **Demo mode** fallback when Supabase is not configured
-
-## Deploy to GitHub Pages
-
-### Option A — manual build
-
 ```bash
-npm install
-npm run build
+cp js/config.example.js js/config.js
 ```
 
-Then deploy the generated `dist/` folder to GitHub Pages.
+Then edit `js/config.js`:
 
-### Option B — GitHub Pages via Actions
+```js
+window.REDGREEN_CONFIG = {
+  SUPABASE_URL: 'https://YOUR_PROJECT.supabase.co',
+  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY'
+};
+```
 
-1. Push this repository to GitHub.
-2. In GitHub, enable **Pages** and choose **GitHub Actions** as the source.
-3. Add a workflow similar to this:
+### Local dev run
+You do **not** need Node for production, but for local preview you can use any static server.
+Example:
+
+```bash
+python3 -m http.server 4173
+```
+
+Then open:
+
+```text
+http://localhost:4173
+```
+
+---
+
+## 9. GitHub Pages deployment
+
+### Simplest option
+Push these files directly and serve the repository root with GitHub Pages.
+
+### Recommended secure automation with GitHub Actions
+Use GitHub secrets:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Then create a Pages workflow that writes `js/config.js` during deployment:
 
 ```yaml
-name: Deploy Pages
+name: Deploy GitHub Pages
 
 on:
   push:
@@ -173,41 +315,62 @@ permissions:
   id-token: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
   deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
     steps:
+      - uses: actions/checkout@v4
+      - name: Create runtime config
+        run: |
+          cat > js/config.js <<EOF
+          window.REDGREEN_CONFIG = {
+            SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
+            SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}'
+          };
+          EOF
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
       - id: deployment
         uses: actions/deploy-pages@v4
 ```
 
-## Notes for scaling later
+### Why this works
+- GitHub Pages serves static assets only
+- `js/config.js` is generated before publishing
+- Supabase anon key is public-safe for client usage
+- No server runtime is needed
 
-If you need stricter anti-abuse later, add:
+---
 
-- a `flag_votes` table keyed by hashed anonymous user id
-- Supabase Edge Functions for vote validation
-- stronger multilingual moderation lists or a moderation API
-- pagination / infinite loading for very large feeds
+## 10. Notes on vote security
 
-For the requested static GitHub Pages architecture, the current implementation keeps the stack intentionally simple while remaining deployable.
+This implementation follows your requirement of:
+- one vote per user in `localStorage`
+- direct public Supabase updates
+- no custom backend server
+
+That is simple and deployable, but **not perfectly tamper-proof**, because users control their browsers.
+
+If you want stronger abuse protection later, add:
+- a `flag_votes` table
+- hashed anonymous voter ids
+- RPC or Edge Function validation
+- rate limiting
+
+For your requested architecture, the current version keeps things intentionally simple.
+
+---
+
+## 11. How to use
+
+1. Configure Supabase.
+2. Run the SQL in `supabase/schema.sql`.
+3. Enable realtime for `public.flags` if needed in Supabase.
+4. Add your `SUPABASE_URL` and `SUPABASE_ANON_KEY` into `js/config.js` or generate it during deploy.
+5. Publish to GitHub Pages.
+
+Done: fully static frontend, Supabase backend, no custom server.

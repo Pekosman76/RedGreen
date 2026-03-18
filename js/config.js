@@ -1,0 +1,4 @@
+window.REDGREEN_CONFIG = window.REDGREEN_CONFIG || {
+  SUPABASE_URL: '',
+  SUPABASE_ANON_KEY: ''
+};
